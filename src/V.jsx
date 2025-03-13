@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-
 const VisualNovelDiagrammer = () => {
     const [scenes, setScenes] = useState([]);
     const [currentSceneId, setCurrentSceneId] = useState(null);
     const [jsonOutput, setJsonOutput] = useState('');
     const [newSceneId, setNewSceneId] = useState('');
-    // Default scene template
+
     const createNewScene = (id) => {
         return {
             id: id,
@@ -19,7 +18,6 @@ const VisualNovelDiagrammer = () => {
         };
     };
 
-
     useEffect(() => {
         const unloadCallback = (event) => {
             event.preventDefault();
@@ -31,30 +29,24 @@ const VisualNovelDiagrammer = () => {
         return () => window.removeEventListener("beforeunload", unloadCallback);
     }, []);
 
-    // Add a new scene
     const addScene = () => {
         const sceneId = newSceneId || `scene_${scenes.length + 1}`;
-
-        // Check if ID already exists
         if (scenes.some(s => s.id === sceneId)) {
             alert("Scene ID already exists. Please choose a different ID.");
             return;
         }
-
         const newScene = createNewScene(sceneId);
         setScenes([...scenes, newScene]);
         setCurrentSceneId(sceneId);
         setNewSceneId('');
     };
 
-    // Update scene properties
     const updateScene = (updates) => {
         setScenes(scenes.map(scene =>
             scene.id === currentSceneId ? { ...scene, ...updates } : scene
         ));
     };
 
-    // Add dialogue to current scene
     const addDialogue = () => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene) {
@@ -64,77 +56,75 @@ const VisualNovelDiagrammer = () => {
                 speakerName: "",
                 characters: []
             };
-
             const updatedDialogue = [...currentScene.dialogue, newDialogue];
             updateScene({ dialogue: updatedDialogue });
         }
     };
 
-    // Update a dialogue entry
     const updateDialogue = (index, field, value) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene) {
             const updatedDialogue = [...currentScene.dialogue];
-
-            if (field === 'characters') {
-                // Split comma-separated string into array
-                value = value.split(',').map(char => char.trim()).filter(char => char);
-            }
-
             updatedDialogue[index] = { ...updatedDialogue[index], [field]: value };
             updateScene({ dialogue: updatedDialogue });
         }
     };
 
-    // Add a character to dialogue
-    const addCharacter = (dialogueIndex, character) => {
+    const addCharacter = (dialogueIndex) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
-        if (currentScene && character) {
+        if (currentScene) {
+            const newCharacter = {
+                id: `char_${Date.now()}`,
+                name: "",
+                emotion: "neutral",
+                position: "center",
+                visible: true,
+                isSpeaking: false
+            };
             const updatedDialogue = [...currentScene.dialogue];
-            const characters = [...updatedDialogue[dialogueIndex].characters, character];
-            updatedDialogue[dialogueIndex] = { ...updatedDialogue[dialogueIndex], characters };
+            updatedDialogue[dialogueIndex].characters.push(newCharacter);
             updateScene({ dialogue: updatedDialogue });
         }
     };
 
-    // Remove a character from dialogue
-    const removeCharacter = (dialogueIndex, characterIndex) => {
+    const updateCharacter = (dialogueIndex, charIndex, field, value) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene) {
             const updatedDialogue = [...currentScene.dialogue];
-            const characters = [...updatedDialogue[dialogueIndex].characters];
-            characters.splice(characterIndex, 1);
-            updatedDialogue[dialogueIndex] = { ...updatedDialogue[dialogueIndex], characters };
+            updatedDialogue[dialogueIndex].characters[charIndex] = {
+                ...updatedDialogue[dialogueIndex].characters[charIndex],
+                [field]: value
+            };
             updateScene({ dialogue: updatedDialogue });
         }
     };
 
-    // Add a choice
+    const removeCharacter = (dialogueIndex, charIndex) => {
+        const currentScene = scenes.find(s => s.id === currentSceneId);
+        if (currentScene) {
+            const updatedDialogue = [...currentScene.dialogue];
+            updatedDialogue[dialogueIndex].characters.splice(charIndex, 1);
+            updateScene({ dialogue: updatedDialogue });
+        }
+    };
+
     const addChoice = () => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene) {
             let next;
-
             if (currentScene.next.choices) {
-                // If choices already exist, add another one
                 next = {
-                    choices: [
-                        ...currentScene.next.choices,
-                        { text: "", nextScene: "" }
-                    ]
+                    choices: [...currentScene.next.choices, { text: "", nextScene: "" }]
                 };
             } else {
-                // If no choices yet, create the choices array
                 next = {
                     choices: [{ text: "", nextScene: "" }]
                 };
             }
-
             updateScene({ next });
         }
     };
 
-    // Update a choice
     const updateChoice = (index, field, value) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene && currentScene.next.choices) {
@@ -144,13 +134,10 @@ const VisualNovelDiagrammer = () => {
         }
     };
 
-    // Remove a choice
     const removeChoice = (index) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene && currentScene.next.choices) {
             const updatedChoices = currentScene.next.choices.filter((_, i) => i !== index);
-
-            // If no choices left, switch back to single scene mode
             if (updatedChoices.length === 0) {
                 updateScene({ next: { scene: "" } });
             } else {
@@ -159,35 +146,26 @@ const VisualNovelDiagrammer = () => {
         }
     };
 
-    // Delete a scene
     const deleteScene = (id) => {
-        // Update references to this scene from other scenes
         const updatedScenes = scenes.map(scene => {
             if (scene.next.scene === id) {
                 return { ...scene, next: { scene: "" } };
             }
-
             if (scene.next.choices) {
                 const updatedChoices = scene.next.choices.map(choice =>
                     choice.nextScene === id ? { ...choice, nextScene: "" } : choice
                 );
                 return { ...scene, next: { choices: updatedChoices } };
             }
-
             return scene;
         });
-
-        // Remove the scene itself
         const filteredScenes = updatedScenes.filter(scene => scene.id !== id);
         setScenes(filteredScenes);
-
-        // Update current scene if necessary
         if (currentSceneId === id) {
             setCurrentSceneId(filteredScenes.length > 0 ? filteredScenes[0].id : null);
         }
     };
 
-    // Remove a dialogue entry
     const removeDialogue = (index) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene) {
@@ -196,7 +174,6 @@ const VisualNovelDiagrammer = () => {
         }
     };
 
-    // Toggle between single next scene and choices
     const toggleSceneFlow = (useChoices) => {
         const currentScene = scenes.find(s => s.id === currentSceneId);
         if (currentScene) {
@@ -208,21 +185,16 @@ const VisualNovelDiagrammer = () => {
         }
     };
 
-    // Update next scene (single path)
     const updateNextScene = (sceneId) => {
         updateScene({ next: { scene: sceneId } });
     };
 
-    // Export to JSON
     const exportToJson = () => {
-        const output = {
-            scenes: scenes
-        };
+        const output = { scenes: scenes };
         const formatted = JSON.stringify(output, null, 4);
         setJsonOutput(formatted);
     };
 
-    // Import from JSON
     const importFromJson = (jsonStr) => {
         try {
             const parsed = JSON.parse(jsonStr);
@@ -239,45 +211,42 @@ const VisualNovelDiagrammer = () => {
         }
     };
 
-    // Get the current scene
     const currentScene = scenes.find(s => s.id === currentSceneId) || null;
-
-    // Determine if current scene uses choices
     const hasChoices = currentScene && currentScene.next && currentScene.next.choices;
 
-    // Generate a flow diagram visualization
     const renderDiagram = () => {
         return (
-            <div className="flow-diagram p-4 bg-gray-800 rounded-lg overflow-auto h-full">
-                <h3 className="text-lg font-semibold mb-3 text-white">Flow Diagram</h3>
+            <div className="p-4 rounded-lg overflow-auto h-full" style={{ backgroundColor: '#202020' }}>
+                <h3 className="text-lg font-semibold mb-3" style={{ color: '#F7FAFC' }}>Flow Diagram</h3>
                 <div className="flex flex-wrap gap-4">
                     {scenes.map(scene => (
                         <div
                             key={scene.id}
-                            className="p-3 bg-gray-700 rounded-lg shadow border-2 cursor-pointer hover:bg-gray-600 transition-colors"
+                            className="p-3 rounded-lg shadow border-2 cursor-pointer hover:bg-[#4B5B6E] transition-colors"
                             style={{
-                                borderColor: scene.id === currentSceneId ? '#3b82f6' : 'transparent',
+                                backgroundColor: '#404040',
+                                borderColor: scene.id === currentSceneId ? '#A7589F' : 'transparent',
                                 minWidth: '180px'
                             }}
                             onClick={() => setCurrentSceneId(scene.id)}
                         >
-                            <div className="font-bold text-white">{scene.id}</div>
-                            <div className="text-xs mt-1 text-gray-300 truncate">
+                            <div className="font-bold" style={{ color: '#F7FAFC' }}>{scene.id}</div>
+                            <div className="text-xs mt-1 truncate" style={{ color: '#CBD5E0' }}>
                                 {scene.dialogue && scene.dialogue[0]?.text.substring(0, 40)}{scene.dialogue && scene.dialogue[0]?.text.length > 40 ? '...' : ''}
                             </div>
                             <div className="mt-2 text-xs">
                                 {scene.next && scene.next.scene ? (
-                                    <span className="bg-green-900 text-green-200 px-2 py-1 rounded">
-                    → {scene.next.scene}
-                  </span>
+                                    <span className="px-2 py-1 rounded" style={{ backgroundColor: '#718096', color: '#E2E8F0' }}>
+                                        → {scene.next.scene}
+                                    </span>
                                 ) : scene.next && scene.next.choices ? (
-                                    <span className="bg-purple-900 text-purple-200 px-2 py-1 rounded">
-                    {scene.next.choices.length} choices
-                  </span>
+                                    <span className="px-2 py-1 rounded" style={{ backgroundColor: '#718096', color: '#E2E8F0' }}>
+                                        {scene.next.choices.length} choices
+                                    </span>
                                 ) : (
-                                    <span className="bg-gray-600 text-gray-300 px-2 py-1 rounded">
-                    No connections
-                  </span>
+                                    <span className="px-2 py-1 rounded" style={{ backgroundColor: '#718096', color: '#CBD5E0' }}>
+                                        No connections
+                                    </span>
                                 )}
                             </div>
                         </div>
@@ -287,17 +256,17 @@ const VisualNovelDiagrammer = () => {
         );
     };
 
-    // Render scene editing form
     const renderSceneEditor = () => {
         return (
-            <div className="bg-gray-700 p-4 rounded-lg shadow h-full overflow-y-auto text-white">
+            <div className="p-4 rounded-lg shadow h-full overflow-y-auto" style={{ backgroundColor: '#202020', color: '#F7FAFC' }}>
                 {currentScene ? (
                     <>
                         <div className="mb-4">
-                            <label className="block text-sm font-medium mb-1">Scene ID</label>
+                            <label className="block text-sm font-medium mb-1" style={{ color: '#E2E8F0' }}>Scene ID</label>
                             <input
                                 type="text"
-                                className="w-full p-2 border rounded bg-gray-600 text-white border-gray-500"
+                                className="w-full p-2 border rounded"
+                                style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
                                 value={currentScene.id}
                                 readOnly
                             />
@@ -305,47 +274,52 @@ const VisualNovelDiagrammer = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Background</label>
+                                <label className="block text-sm font-medium mb-1" style={{ color: '#E2E8F0' }}>Background</label>
                                 <input
                                     type="text"
-                                    className="w-full p-2 border rounded bg-gray-600 text-white border-gray-500"
+                                    className="w-full p-2 border rounded"
+                                    style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
                                     value={currentScene.background}
                                     onChange={(e) => updateScene({ background: e.target.value })}
                                     placeholder="Background image or color"
                                 />
                             </div>
-
                             <div className="flex items-center">
                                 <input
                                     type="checkbox"
                                     id="transition"
-                                    className="mr-2 text-blue-500"
+                                    className="mr-2"
+                                    style={{ accentColor: '#A7589F' }}
                                     checked={currentScene.transition || false}
                                     onChange={(e) => updateScene({ transition: e.target.checked })}
                                 />
-                                <label htmlFor="transition" className="text-sm font-medium">Transition Effect</label>
+                                <label htmlFor="transition" className="text-sm font-medium" style={{ color: '#E2E8F0' }}>Transition Effect</label>
                             </div>
                         </div>
 
                         <div className="mb-4">
                             <div className="flex justify-between items-center mb-2">
-                                <label className="block text-sm font-medium">Dialogue</label>
+                                <label className="block text-sm font-medium" style={{ color: '#E2E8F0' }}>Dialogue</label>
                                 <button
-                                    className="text-sm bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                                    className="text-sm px-2 py-1 rounded"
+                                    style={{ backgroundColor: '#A7589F', color: '#F7FAFC' }}
                                     onClick={addDialogue}
+                                    onMouseOver={(e) => e.target.style.backgroundColor = '#8C487F'}
+                                    onMouseOut={(e) => e.target.style.backgroundColor = '#A7589F'}
                                 >
                                     Add Dialogue
                                 </button>
                             </div>
 
                             {currentScene.dialogue.map((d, index) => (
-                                <div key={index} className="p-3 border rounded mb-3 bg-gray-600 border-gray-500">
+                                <div key={index} className="p-3 border rounded mb-3" style={{ backgroundColor: '#2D2D2D', borderColor: '#718096' }}>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
                                         <div>
-                                            <label className="block text-xs mb-1">Speaker Name</label>
+                                            <label className="block text-xs mb-1" style={{ color: '#CBD5E0' }}>Speaker Name</label>
                                             <input
                                                 type="text"
-                                                className="w-full p-2 border rounded bg-gray-700 text-white border-gray-500"
+                                                className="w-full p-2 border rounded"
+                                                style={{ backgroundColor: '#404040', color: '#F7FAFC', borderColor: '#718096' }}
                                                 value={d.speakerName}
                                                 onChange={(e) => updateDialogue(index, 'speakerName', e.target.value)}
                                                 placeholder="Speaker name"
@@ -355,18 +329,20 @@ const VisualNovelDiagrammer = () => {
                                             <input
                                                 type="checkbox"
                                                 id={`waitInput_${index}`}
-                                                className="mr-2 text-blue-500"
+                                                className="mr-2"
+                                                style={{ accentColor: '#A7589F' }}
                                                 checked={d.waitForInput}
                                                 onChange={(e) => updateDialogue(index, 'waitForInput', e.target.checked)}
                                             />
-                                            <label htmlFor={`waitInput_${index}`} className="text-sm">Wait for Input</label>
+                                            <label htmlFor={`waitInput_${index}`} className="text-sm" style={{ color: '#CBD5E0' }}>Wait for Input</label>
                                         </div>
                                     </div>
 
                                     <div className="mb-2">
-                                        <label className="block text-xs mb-1">Dialogue Text</label>
+                                        <label className="block text-xs mb-1" style={{ color: '#CBD5E0' }}>Dialogue Text</label>
                                         <textarea
-                                            className="w-full p-2 border rounded bg-gray-700 text-white border-gray-500"
+                                            className="w-full p-2 border rounded"
+                                            style={{ backgroundColor: '#404040', color: '#F7FAFC', borderColor: '#718096' }}
                                             rows="2"
                                             value={d.text}
                                             onChange={(e) => updateDialogue(index, 'text', e.target.value)}
@@ -375,20 +351,94 @@ const VisualNovelDiagrammer = () => {
                                     </div>
 
                                     <div className="mb-2">
-                                        <label className="block text-xs mb-1">Characters (comma-separated)</label>
-                                        <input
-                                            type="text"
-                                            className="w-full p-2 border rounded bg-gray-700 text-white border-gray-500"
-                                            value={d.characters.join(', ')}
-                                            onChange={(e) => updateDialogue(index, 'characters', e.target.value)}
-                                            placeholder="character1, character2, ..."
-                                        />
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="block text-xs" style={{ color: '#CBD5E0' }}>Characters</label>
+                                            <button
+                                                className="text-sm px-2 py-1 rounded"
+                                                style={{ backgroundColor: '#A7589F', color: '#F7FAFC' }}
+                                                onClick={() => addCharacter(index)}
+                                                onMouseOver={(e) => e.target.style.backgroundColor = '#8C487F'}
+                                                onMouseOut={(e) => e.target.style.backgroundColor = '#A7589F'}
+                                            >
+                                                Add Character
+                                            </button>
+                                        </div>
+
+                                        {d.characters.map((char, charIndex) => (
+                                            <div key={char.id} className="mb-2 p-2 rounded border" style={{ backgroundColor: '#4B5B6E', borderColor: '#718096' }}>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="block text-xs mb-1" style={{ color: '#CBD5E0' }}>Name</label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full p-1 border rounded"
+                                                            style={{ backgroundColor: '#404040', color: '#F7FAFC', borderColor: '#718096' }}
+                                                            value={char.name}
+                                                            onChange={(e) => updateCharacter(index, charIndex, 'name', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs mb-1" style={{ color: '#CBD5E0' }}>Emotion</label>
+                                                        <select
+                                                            className="w-full p-1 border rounded"
+                                                            style={{ backgroundColor: '#404040', color: '#F7FAFC', borderColor: '#718096' }}
+                                                            value={char.emotion}
+                                                            onChange={(e) => updateCharacter(index, charIndex, 'emotion', e.target.value)}
+                                                        >
+                                                            <option value="neutral">Neutral</option>
+                                                            <option value="happy">Happy</option>
+                                                            <option value="sad">Sad</option>
+                                                            <option value="angry">Angry</option>
+                                                            <option value="despair">Despair</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs mb-1" style={{ color: '#CBD5E0' }}>Position</label>
+                                                        <select
+                                                            className="w-full p-1 border rounded"
+                                                            style={{ backgroundColor: '#404040', color: '#F7FAFC', borderColor: '#718096' }}
+                                                            value={char.position}
+                                                            onChange={(e) => updateCharacter(index, charIndex, 'position', e.target.value)}
+                                                        >
+                                                            <option value="center">Center</option>
+                                                            <option value="left">Left</option>
+                                                            <option value="right">Right</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={char.visible}
+                                                            onChange={(e) => updateCharacter(index, charIndex, 'visible', e.target.checked)}
+                                                            style={{ accentColor: '#A7589F' }}
+                                                        />
+                                                        <label className="text-xs" style={{ color: '#CBD5E0' }}>Visible</label>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={char.isSpeaking}
+                                                            onChange={(e) => updateCharacter(index, charIndex, 'isSpeaking', e.target.checked)}
+                                                            style={{ accentColor: '#A7589F' }}
+                                                        />
+                                                        <label className="text-xs" style={{ color: '#CBD5E0' }}>Speaking</label>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    className="text-red-400 hover:text-red-300 text-xs mt-2"
+                                                    onClick={() => removeCharacter(index, charIndex)}
+                                                >
+                                                    Remove Character
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
 
                                     <div className="flex justify-end">
                                         <button
-                                            className="text-red-400 hover:text-red-300 px-2"
+                                            className="px-2"
+                                            style={{ color: '#FCA5A5' }}
                                             onClick={() => removeDialogue(index)}
+                                            onMouseOver={(e) => e.target.style.color = '#F87171'}
+                                            onMouseOut={(e) => e.target.style.color = '#FCA5A5'}
                                         >
                                             Remove Dialogue
                                         </button>
@@ -398,17 +448,23 @@ const VisualNovelDiagrammer = () => {
                         </div>
 
                         <div className="mb-4">
-                            <label className="block text-sm font-medium mb-2">Scene Flow</label>
+                            <label className="block text-sm font-medium mb-2" style={{ color: '#E2E8F0' }}>Scene Flow</label>
                             <div className="flex gap-4 mb-3">
                                 <button
-                                    className={`px-3 py-2 rounded ${!hasChoices ? 'bg-blue-600 text-white' : 'bg-gray-600'}`}
+                                    className="px-3 py-2 rounded"
+                                    style={{ backgroundColor: !hasChoices ? '#A7589F' : '#718096', color: !hasChoices ? '#F7FAFC' : '#E2E8F0' }}
                                     onClick={() => toggleSceneFlow(false)}
+                                    onMouseOver={(e) => e.target.style.backgroundColor = !hasChoices ? '#8C487F' : '#404040'}
+                                    onMouseOut={(e) => e.target.style.backgroundColor = !hasChoices ? '#A7589F' : '#718096'}
                                 >
                                     Single Next Scene
                                 </button>
                                 <button
-                                    className={`px-3 py-2 rounded ${hasChoices ? 'bg-blue-600 text-white' : 'bg-gray-600'}`}
+                                    className="px-3 py-2 rounded"
+                                    style={{ backgroundColor: hasChoices ? '#A7589F' : '#718096', color: hasChoices ? '#F7FAFC' : '#E2E8F0' }}
                                     onClick={() => toggleSceneFlow(true)}
+                                    onMouseOver={(e) => e.target.style.backgroundColor = hasChoices ? '#8C487F' : '#404040'}
+                                    onMouseOut={(e) => e.target.style.backgroundColor = hasChoices ? '#A7589F' : '#718096'}
                                 >
                                     Multiple Choices
                                 </button>
@@ -416,10 +472,11 @@ const VisualNovelDiagrammer = () => {
 
                             {!hasChoices ? (
                                 <div className="flex gap-2 items-center">
-                                    <label className="text-sm w-1/4">Next Scene:</label>
+                                    <label className="text-sm w-1/4" style={{ color: '#CBD5E0' }}>Next Scene:</label>
                                     <input
                                         type="text"
-                                        className="p-2 border rounded w-3/4 bg-gray-600 text-white border-gray-500"
+                                        className="p-2 border rounded w-3/4"
+                                        style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
                                         value={currentScene.next?.scene || ""}
                                         onChange={(e) => updateNextScene(e.target.value)}
                                         list="scenesList"
@@ -439,14 +496,16 @@ const VisualNovelDiagrammer = () => {
                                         <div key={index} className="flex gap-2 mb-2 items-start">
                                             <input
                                                 type="text"
-                                                className="w-2/3 p-2 border rounded bg-gray-600 text-white border-gray-500"
+                                                className="w-2/3 p-2 border rounded"
+                                                style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
                                                 value={choice.text}
                                                 onChange={(e) => updateChoice(index, 'text', e.target.value)}
                                                 placeholder="Choice text"
                                             />
                                             <input
                                                 type="text"
-                                                className="w-1/3 p-2 border rounded bg-gray-600 text-white border-gray-500"
+                                                className="w-1/3 p-2 border rounded"
+                                                style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
                                                 value={choice.nextScene}
                                                 onChange={(e) => updateChoice(index, 'nextScene', e.target.value)}
                                                 placeholder="Target scene ID"
@@ -460,16 +519,22 @@ const VisualNovelDiagrammer = () => {
                                                     ))}
                                             </datalist>
                                             <button
-                                                className="text-red-400 hover:text-red-300 px-2"
+                                                className="px-2"
+                                                style={{ color: '#FCA5A5' }}
                                                 onClick={() => removeChoice(index)}
+                                                onMouseOver={(e) => e.target.style.color = '#F87171'}
+                                                onMouseOut={(e) => e.target.style.color = '#FCA5A5'}
                                             >
                                                 ✕
                                             </button>
                                         </div>
                                     ))}
                                     <button
-                                        className="text-sm bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                                        className="text-sm px-2 py-1 rounded"
+                                        style={{ backgroundColor: '#A7589F', color: '#F7FAFC' }}
                                         onClick={addChoice}
+                                        onMouseOver={(e) => e.target.style.backgroundColor = '#8C487F'}
+                                        onMouseOut={(e) => e.target.style.backgroundColor = '#A7589F'}
                                     >
                                         Add Choice
                                     </button>
@@ -478,7 +543,7 @@ const VisualNovelDiagrammer = () => {
                         </div>
                     </>
                 ) : (
-                    <div className="text-center p-4 text-gray-300">
+                    <div className="text-center p-4" style={{ color: '#CBD5E0' }}>
                         <p>No scene selected. Add a new scene or select an existing one.</p>
                     </div>
                 )}
@@ -487,43 +552,54 @@ const VisualNovelDiagrammer = () => {
     };
 
     return (
-        <div className="p-4 mx-auto bg-gray-900 min-h-screen text-white">
+        <div className="p-4 mx-auto min-h-screen" style={{ backgroundColor: '#111111', color: '#F7FAFC' }}>
             <h1 className="text-2xl font-bold mb-6">Visual Novel Diagrammer</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
-                {/* Left sidebar - Scene List */}
-                <div className="md:col-span-2 bg-gray-800 p-4 rounded-lg">
-                    <h2 className="text-lg font-semibold mb-3">Scenes</h2>
+                <div className="md:col-span-2 p-4 rounded-lg" style={{ backgroundColor: '#202020' }}>
+                    <h2 className="text-lg font-semibold mb-3" style={{ color: '#E2E8F0' }}>Scenes</h2>
                     <div className="flex mb-3">
                         <input
                             type="text"
-                            className="flex-grow p-2 border rounded-l bg-gray-700 text-white border-gray-600"
+                            className="flex-grow p-2 border rounded-l"
+                            style={{ backgroundColor: '#404040', color: '#F7FAFC', borderColor: '#718096' }}
                             placeholder="Scene ID"
                             value={newSceneId}
                             onChange={(e) => setNewSceneId(e.target.value)}
                         />
                         <button
-                            className="bg-blue-600 text-white px-3 py-2 rounded-r hover:bg-blue-700"
+                            className="px-3 py-2 rounded-r"
+                            style={{ backgroundColor: '#A7589F', color: '#F7FAFC' }}
                             onClick={addScene}
+                            onMouseOver={(e) => e.target.style.backgroundColor = '#8C487F'}
+                            onMouseOut={(e) => e.target.style.backgroundColor = '#A7589F'}
                         >
                             Add
                         </button>
                     </div>
-
                     <div className="max-h-64 overflow-y-auto">
                         {scenes.map(scene => (
                             <div
                                 key={scene.id}
-                                className={`p-2 my-1 rounded cursor-pointer flex justify-between items-center ${scene.id === currentSceneId ? 'bg-blue-900' : 'hover:bg-gray-700'}`}
+                                className="p-2 my-1 rounded cursor-pointer flex justify-between items-center"
+                                style={{
+                                    backgroundColor: scene.id === currentSceneId ? '#A7589F' : '#404040',
+                                    color: scene.id === currentSceneId ? '#F7FAFC' : '#E2E8F0'
+                                }}
                                 onClick={() => setCurrentSceneId(scene.id)}
+                                onMouseOver={(e) => { if (scene.id !== currentSceneId) e.target.style.backgroundColor = '#4B5B6E'; }}
+                                onMouseOut={(e) => { if (scene.id !== currentSceneId) e.target.style.backgroundColor = '#404040'; }}
                             >
                                 <div className="truncate">{scene.id}</div>
                                 <button
-                                    className="text-red-400 hover:text-red-300"
+                                    className="hover:text-red-300"
+                                    style={{ color: '#FCA5A5' }}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         deleteScene(scene.id);
                                     }}
+                                    onMouseOver={(e) => e.target.style.color = '#F87171'}
+                                    onMouseOut={(e) => e.target.style.color = '#FCA5A5'}
                                 >
                                     ✕
                                 </button>
@@ -532,47 +608,49 @@ const VisualNovelDiagrammer = () => {
                     </div>
                 </div>
 
-                {/* Center - Scene Editor */}
                 <div className="md:col-span-5">
                     {renderSceneEditor()}
                 </div>
 
-                {/* Right - Flow Diagram */}
                 <div className="md:col-span-5">
                     {renderDiagram()}
                 </div>
             </div>
 
-            {/* JSON Export/Import Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                 <div>
                     <button
-                        className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-2"
+                        className="w-full px-4 py-2 rounded mb-2"
+                        style={{ backgroundColor: '#A7589F', color: '#F7FAFC' }}
                         onClick={exportToJson}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#8C487F'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#A7589F'}
                     >
                         Export to JSON
                     </button>
                     {jsonOutput && (
                         <div className="mt-2">
-              <textarea
-                  className="w-full p-2 border rounded font-mono text-sm bg-gray-700 text-white border-gray-600"
-                  rows="12"
-                  value={jsonOutput}
-                  readOnly
-              />
+                            <textarea
+                                className="w-full p-2 border rounded font-mono text-sm"
+                                style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
+                                rows="12"
+                                value={jsonOutput}
+                                readOnly
+                            />
                         </div>
                     )}
                 </div>
 
                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Import JSON</h3>
+                    <h3 className="text-lg font-semibold mb-2" style={{ color: '#E2E8F0' }}>Import JSON</h3>
                     <textarea
-                        className="w-full p-2 border rounded font-mono text-sm bg-gray-700 text-white border-gray-600"
+                        className="w-full p-2 border rounded font-mono text-sm"
+                        style={{ backgroundColor: '#2D2D2D', color: '#F7FAFC', borderColor: '#718096' }}
                         rows="12"
                         placeholder="Paste JSON here"
                         onChange={(e) => importFromJson(e.target.value)}
                     />
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm" style={{ color: '#CBD5E0' }}>
                         <p>Format: <code>{"{ \"scenes\": [ {...}, {...} ] }"}</code></p>
                     </div>
                 </div>
