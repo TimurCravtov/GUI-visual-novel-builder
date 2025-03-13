@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+
 const VisualNovelDiagrammer = () => {
     const [scenes, setScenes] = useState([]);
     const [currentSceneId, setCurrentSceneId] = useState(null);
     const [jsonOutput, setJsonOutput] = useState('');
     const [newSceneId, setNewSceneId] = useState('');
-
     // Default scene template
     const createNewScene = (id) => {
         return {
@@ -18,6 +18,18 @@ const VisualNovelDiagrammer = () => {
             }
         };
     };
+
+
+    useEffect(() => {
+        const unloadCallback = (event) => {
+            event.preventDefault();
+            event.returnValue = "";
+            return "";
+        };
+
+        window.addEventListener("beforeunload", unloadCallback);
+        return () => window.removeEventListener("beforeunload", unloadCallback);
+    }, []);
 
     // Add a new scene
     const addScene = () => {
